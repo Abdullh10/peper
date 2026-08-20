@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  passwordHash String
+  role        Role
+  classCode   String?  @unique // للمعلم: رمز الصف الذي يشاركه مع الطلاب
+  teacherId   String?  // للطالب: معرف المعلم الذي انضم إلى صفه
+  teacher     User?    @relation("TeacherStudents", fields: [teacherId], references: [id])
+  students    User[]   @relation("TeacherStudents")
+  createdAt   DateTime @default(now())
+
+  worksheets  Worksheet[] @relation("TeacherWorksheets")
+  assignments Assignment[] @relation("StudentAssignments")
+  submissions Submission[] @relation("StudentSubmissions")
+}
+
+model Worksheet {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  teacherId   String
+  teacher     User     @relation("TeacherWorksheets", fields: [teacherId], references: [id])
+  pdfPath     String
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pages       WorksheetPage[]
+  fields      Field[]
+  assignments Assignment[]
+  submissions Submission[]
+}
+
+model WorksheetPage {
+  id          String   @id @default(cuid())
+  worksheetId String
+  worksheet   Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  index       Int
+  imagePath   String
+  width       Int
+  height      Int
+
+  fields      Field[]
+}
+
+enum FieldType {
+  TEXT
+  MCQ
+  TRUEFALSE
+  CHECKBOX
+}
+
+model Field {
+  id          String   @id @default(cuid())
+  worksheetId String
+  worksheet   Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  pageId      String
+  page        WorksheetPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  type        FieldType
+  x           Float
+  y           Float
+  width       Float
+  height      Float
+  label       String?
+  optionsJson String?  // JSON: خيارات الاختيار من متعدد
+  answerJson  String   // JSON: الإجابة الصحيحة (يدعم أكثر من إجابة مقبولة للنص)
+  points      Int      @default(1)
+  order       Int      @default(0)
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  worksheetId String
+  worksheet   Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User     @relation("StudentAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  assignedAt  DateTime @default(now())
+  dueDate     DateTime?
+
+  submissions Submission[]
+
+  @@unique([worksheetId, studentId])
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  worksheetId  String
+  worksheet    Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User     @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  answersJson  String   // إجابات الطالب لكل حقل
+  resultsJson  String   // نتيجة كل حقل (صحيح/خطأ + الدرجة)
+  score        Int
+  maxScore     Int
+  submittedAt  DateTime @default(now())
+}
