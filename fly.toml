@@ -1,0 +1,27 @@
+# إعداد جاهز للنشر على Fly.io. غيّر اسم التطبيق قبل أول نشر (يجب أن يكون فريداً عالمياً):
+#   fly apps create <اسم-فريد-لتطبيقك>
+# ثم عدّل السطر أدناه بنفس الاسم قبل تشغيل: fly deploy
+app = "peper-arabic-worksheets"
+primary_region = "fra"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  DATABASE_URL = "file:/data/db/dev.db"
+
+[[mounts]]
+  source = "peper_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

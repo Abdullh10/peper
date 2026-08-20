@@ -44,8 +44,43 @@ npm run dev
   `public/uploads/worksheets/<id>/` ليتم عرضها مباشرة.
 - ملفات PDF الأصلية تُحفظ في `storage/pdfs/` (غير متاحة للعامة).
 
-## ملاحظة على النشر
+## النشر على الإنترنت (Fly.io)
 
 نظراً لاعتماد المعالجة على أداة `pdftoppm` كسطر أوامر، يجب نشر الموقع على بيئة
-تسمح بتشغيل عمليات نظام (مثل خادم Node.js تقليدي أو حاوية Docker) وليس على
-منصات serverless لا تدعم تثبيت حزم نظام مثل poppler-utils.
+تسمح بتشغيل حاوية Docker (وليس على منصات serverless مثل Vercel التي لا تدعم
+تثبيت حزم نظام مثل poppler-utils). المشروع جاهز للنشر عبر **Docker**، والخيار
+المقترح هنا هو **Fly.io** لأنه يوفر مستوى مجاني/رخيص كافٍ لهذا التطبيق مع دعم
+لقرص دائم (persistent volume) يحفظ قاعدة البيانات وملفات الأوراق بين عمليات
+إعادة النشر.
+
+الملفات التالية جاهزة بالفعل في المشروع: `Dockerfile`، `docker/entrypoint.sh`،
+`fly.toml`.
+
+خطوات النشر (تُنفَّذ مرة واحدة من جهازك، تحتاج حساب Fly.io مجاني وبطاقة للتحقق
+فقط):
+
+```bash
+# 1. تثبيت أداة سطر الأوامر وتسجيل الدخول
+curl -L https://fly.io/install.sh | sh
+fly auth login
+
+# 2. إنشاء التطبيق (اختر اسماً فريداً وعدّله أيضاً في fly.toml)
+fly apps create <اسم-فريد-لتطبيقك>
+
+# 3. إنشاء قرص دائم لحفظ قاعدة البيانات والملفات المرفوعة
+fly volumes create peper_data --region fra --size 1
+
+# 4. ضبط السر الخاص بالجلسات (لا يوضع في الكود)
+fly secrets set JWT_SECRET=$(openssl rand -hex 32)
+
+# 5. النشر
+fly deploy
+```
+
+بعد النشر، الموقع يعمل فعلياً بنفس الواجهة والتصميم (وليس بمظهر GitHub Pages
+الافتراضي) على الرابط الذي يعطيه Fly.io (مثل `https://<اسم-تطبيقك>.fly.dev`).
+
+**بدائل أخرى تدعم نفس الـ Dockerfile:** Render أو Railway — يكفي ربط المستودع
+واختيار "Deploy from Dockerfile"، مع تركيب قرص دائم (persistent disk) على مسار
+`/data` وتحديد نفس متغيرات البيئة (`DATABASE_URL=file:/data/db/dev.db` و
+`JWT_SECRET`).
